@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch your Emotions!</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #FCEFB2; /* 背景颜色：浅黄 */
+            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+            color: #EE6826; /* 字体颜色：橙色 */
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
+        
+        #game-canvas {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            font-size: 32px;
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 1px 1px 0px white;
+        }
+        
+        /* 情绪图片和炸弹图片的通用样式 */
+        .mascot, .bomb {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fast-appear 1.5s linear forwards;
+        }
+
+        .mascot img, .bomb img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        @keyframes fast-appear {
+            0% { transform: scale(0); opacity: 0; }
+            20% { transform: scale(1.1); opacity: 1; }
+            80% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.5); opacity: 0; transform: translateY(-40px); }
+        }
+
+        /* 覆盖层界面 */
+        #overlay {
+            position: fixed;
+            background: rgba(252, 239, 178, 0.95); /* 匹配背景色 */
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .logo {
+            width: 700px; /* Logo 尺寸 */
+            max-width: 85%;
+            margin-bottom: 20px;
+        }
+
+        #title {
+            font-size: 56px;
+            margin: 10px 0;
+            font-weight: 900;
+        }
+
+        #result {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        /* 最终得分超大显示 */
+        #final-score-val {
+            font-size: 120px; 
+            display: block;
+            color: #EE6826;
+            margin: 10px 0;
+            font-weight: 900;
+            text-shadow: 4px 4px 0px white;
+        }
+
+        button {
+            background: #EE6826;
+            border: none;
+            padding: 20px 60px;
+            font-size: 30px;
+            border-radius: 60px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 8px 15px rgba(238, 104, 38, 0.3);
+            margin-top: 20px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            background: #d45a1f;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="sfx-catch" src="powerUp.wav" preload="auto"></audio>
+    <audio id="sfx-bomb" src="explosion.wav" preload="auto"></audio>
+
+    <div class="header">
+        <div>Score: <span id="score">0</span></div>
+        <div>Time: <span id="timer">30</span>s</div>
+    </div>
+
+    <div id="game-canvas"></div>
+
+    <div id="overlay">
+        <img src="logo.png" alt="Dododots Logo" class="logo" onerror="this.src='https://via.placeholder.com/400x150?text=Dododots+Logo'">
+        
+        <h1 id="title">Catch your Emotions!</h1>
+        <p id="result">Catch the emoji.Avoid the bombs!</p>
+        
+        <div id="final-score-area" style="display:none;">
+            <span id="final-score-val">0</span>
+        </div>
+        
+        <button id="start-btn" onclick="startGame()">START GAME</button>
+    </div>
+
+    <script>
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let spawnTimer;
+
+        // 【在这里替换你的图片文件名】
+        const emotionImages = [
+            'banana.png', 
+            'cup.png', 
+            'heart.png', 
+            'music_note.png',
+            'round.png',
+            'sun.png'
+        ];
+        const bombImage = 'bomb.png'; // 炸弹图片
+
+        const canvas = document.getElementById('game-canvas');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const overlay = document.getElementById('overlay');
+        const finalScoreArea = document.getElementById('final-score-area');
+        const finalScoreVal = document.getElementById('final-score-val');
+        
+        const catchSound = document.getElementById('sfx-catch');
+        const bombSound = document.getElementById('sfx-bomb');
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            scoreDisplay.innerText = score;
+            timerDisplay.innerText = timeLeft;
+            overlay.style.display = 'none';
+            finalScoreArea.style.display = 'none';
+            canvas.innerHTML = '';
+
+            const timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame("TIME'S UP!");
+                }
+            }, 1000);
+
+            spawnItems();
+        }
+
+        function spawnItems() {
+            if (!gameActive) return;
+
+            const isBomb = Math.random() > 0.75;
+            const item = document.createElement('div');
+            
+            if (isBomb) {
+                item.className = 'bomb';
+                // 使用你的炸弹图片
+                item.innerHTML = `<img src="${bombImage}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/564/564619.png'">`;
+            } else {
+                item.className = 'mascot';
+                // 随机选择一个你的情绪图片
+                const randomImg = emotionImages[Math.floor(Math.random() * emotionImages.length)];
+                item.innerHTML = `<img src="${randomImg}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1791/1791330.png'">`;
+            }
+
+            const x = Math.random() * (window.innerWidth - 120);
+            const y = 100 + Math.random() * (window.innerHeight - 250);
+            item.style.left = x + 'px';
+            item.style.top = y + 'px';
+
+            item.onclick = (e) => {
+                if (!gameActive) return;
+                e.stopPropagation();
+
+                if (isBomb) {
+                    bombSound.currentTime = 0;
+                    bombSound.play();
+                    score -= 3;
+                    // 屏幕闪烁效果
+                    document.body.style.backgroundColor = '#FFBABA';
+                    setTimeout(() => document.body.style.backgroundColor = '#FCEFB2', 100);
+                } else {
+                    catchSound.currentTime = 0;
+                    catchSound.play();
+                    score += 1;
+                }
+                scoreDisplay.innerText = score;
+                item.remove();
+            };
+
+            canvas.appendChild(item);
+            setTimeout(() => { if(item) item.remove(); }, 1500);
+            
+            // 产生速度：每600毫秒一个，增加挑战性
+            spawnTimer = setTimeout(spawnItems, 600);
+        }
+
+        function endGame(msg) {
+            gameActive = false;
+            clearTimeout(spawnTimer);
+            overlay.style.display = 'flex';
+            document.getElementById('title').innerText = msg;
+            document.getElementById('result').innerText = "FINAL SCORE";
+            finalScoreArea.style.display = 'block';
+            finalScoreVal.innerText = score;
+            document.getElementById('start-btn').innerText = "PLAY AGAIN";
+            canvas.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
