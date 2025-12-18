@@ -7,9 +7,9 @@
     <style>
         body {
             margin: 0;
-            background-color: #FCEFB2; /* 背景颜色：浅黄 */
+            background-color: #FCEFB2; /* 背景：浅黄 */
             font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
-            color: #EE6826; /* 字体颜色：橙色 */
+            color: #EE6826; /* 字体：橙色 */
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -36,7 +36,6 @@
             text-shadow: 1px 1px 0px white;
         }
         
-        /* 情绪图片和炸弹图片的通用样式 */
         .mascot, .bomb {
             position: absolute;
             width: 110px;
@@ -61,10 +60,9 @@
             100% { transform: scale(0.5); opacity: 0; transform: translateY(-40px); }
         }
 
-        /* 覆盖层界面 */
         #overlay {
             position: fixed;
-            background: rgba(252, 239, 178, 0.95); /* 匹配背景色 */
+            background: rgba(252, 239, 178, 0.95);
             width: 100%;
             height: 100%;
             display: flex;
@@ -76,23 +74,24 @@
         }
 
         .logo {
-            width: 700px; /* Logo 尺寸 */
-            max-width: 85%;
+            width: 500px; 
+            max-width: 80%;
             margin-bottom: 20px;
         }
 
         #title {
-            font-size: 56px;
+            font-size: 64px;
             margin: 10px 0;
             font-weight: 900;
+            text-transform: uppercase;
         }
 
-        #result {
+        #result-text {
             font-size: 28px;
             font-weight: bold;
+            margin-bottom: 10px;
         }
 
-        /* 最终得分超大显示 */
         #final-score-val {
             font-size: 120px; 
             display: block;
@@ -137,7 +136,7 @@
         <img src="logo.png" alt="Dododots Logo" class="logo" onerror="this.src='https://via.placeholder.com/400x150?text=Dododots+Logo'">
         
         <h1 id="title">Catch your Emotions!</h1>
-        <p id="result">Catch the emoji.Avoid the bombs!</p>
+        <p id="result-text">Catch the emoji. Avoid the bombs!</p>
         
         <div id="final-score-area" style="display:none;">
             <span id="final-score-val">0</span>
@@ -152,16 +151,9 @@
         let gameActive = false;
         let spawnTimer;
 
-        // 【在这里替换你的图片文件名】
-        const emotionImages = [
-            'banana.png', 
-            'cup.png', 
-            'heart.png', 
-            'music_note.png',
-            'round.png',
-            'sun.png'
-        ];
-        const bombImage = 'bomb.png'; // 炸弹图片
+        // 图片数组
+        const emotionImages = ['banana.png', 'cup.png', 'heart.png', 'music_note.png', 'round.png', 'sun.png'];
+        const bombImage = 'bomb.png';
 
         const canvas = document.getElementById('game-canvas');
         const scoreDisplay = document.getElementById('score');
@@ -169,6 +161,9 @@
         const overlay = document.getElementById('overlay');
         const finalScoreArea = document.getElementById('final-score-area');
         const finalScoreVal = document.getElementById('final-score-val');
+        const titleText = document.getElementById('title');
+        const resultText = document.getElementById('result-text');
+        const startBtn = document.getElementById('start-btn');
         
         const catchSound = document.getElementById('sfx-catch');
         const bombSound = document.getElementById('sfx-bomb');
@@ -176,10 +171,12 @@
         function startGame() {
             document.querySelector('.header').style.display = 'flex';
             score = 0;
+            score = 0;
             timeLeft = 30;
             gameActive = true;
             scoreDisplay.innerText = score;
             timerDisplay.innerText = timeLeft;
+            
             overlay.style.display = 'none';
             finalScoreArea.style.display = 'none';
             canvas.innerHTML = '';
@@ -189,7 +186,7 @@
                 timerDisplay.innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    endGame("TIME'S UP!");
+                    checkWinLose();
                 }
             }, 1000);
 
@@ -199,16 +196,14 @@
         function spawnItems() {
             if (!gameActive) return;
 
-            const isBomb = Math.random() > 0.75;
+            const isBomb = Math.random() > 0.75; // 25% 炸弹
             const item = document.createElement('div');
             
             if (isBomb) {
                 item.className = 'bomb';
-                // 使用你的炸弹图片
                 item.innerHTML = `<img src="${bombImage}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/564/564619.png'">`;
             } else {
                 item.className = 'mascot';
-                // 随机选择一个你的情绪图片
                 const randomImg = emotionImages[Math.floor(Math.random() * emotionImages.length)];
                 item.innerHTML = `<img src="${randomImg}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1791/1791330.png'">`;
             }
@@ -223,15 +218,18 @@
                 e.stopPropagation();
 
                 if (isBomb) {
-                    bombSound.currentTime = 0;
-                    bombSound.play();
+                    if (bombSound.readyState > 0) {
+                        bombSound.currentTime = 0;
+                        bombSound.play();
+                    }
                     score -= 3;
-                    // 屏幕闪烁效果
                     document.body.style.backgroundColor = '#FFBABA';
                     setTimeout(() => document.body.style.backgroundColor = '#FCEFB2', 100);
                 } else {
-                    catchSound.currentTime = 0;
-                    catchSound.play();
+                    if (catchSound.readyState > 0) {
+                        catchSound.currentTime = 0;
+                        catchSound.play();
+                    }
                     score += 1;
                 }
                 scoreDisplay.innerText = score;
@@ -239,23 +237,32 @@
             };
 
             canvas.appendChild(item);
-            setTimeout(() => { if(item) item.remove(); }, 1500);
+            setTimeout(() => { if(item.parentElement) item.remove(); }, 1500);
             
-            // 产生速度：每600毫秒一个，增加挑战性
             spawnTimer = setTimeout(spawnItems, 600);
         }
 
-        function endGame(msg) {
+        function checkWinLose() {
             document.querySelector('.header').style.display = 'none';
             gameActive = false;
             clearTimeout(spawnTimer);
+            canvas.innerHTML = '';
+            
             overlay.style.display = 'flex';
-            document.getElementById('title').innerText = msg;
-            document.getElementById('result').innerText = "FINAL SCORE";
             finalScoreArea.style.display = 'block';
             finalScoreVal.innerText = score;
-            document.getElementById('start-btn').innerText = "PLAY AGAIN";
-            canvas.innerHTML = '';
+
+            if (score >= 30) {
+                titleText.innerText = "YOU WIN!";
+                titleText.style.color = "#28a745"; // 胜利绿色
+                resultText.innerText = "AMAZING JOB!";
+                startBtn.innerText = "PLAY AGAIN";
+            } else {
+                titleText.innerText = "TRY AGAIN!";
+                titleText.style.color = "#EE6826"; // 失败橙色
+                resultText.innerText = "Score 30 to win! You need " + (30 - score) + " more.";
+                startBtn.innerText = "TRY AGAIN";
+            }
         }
     </script>
 </body>
