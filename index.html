@@ -28,7 +28,7 @@
             position: absolute;
             top: 20px;
             width: 100%;
-            display: flex;
+            display: none;
             justify-content: space-around;
             font-size: 32px;
             font-weight: bold;
@@ -174,6 +174,7 @@
         const bombSound = document.getElementById('sfx-bomb');
 
         function startGame() {
+            document.querySelector('.header').style.display = 'flex';
             score = 0;
             timeLeft = 30;
             gameActive = true;
@@ -245,6 +246,7 @@
         }
 
         function endGame(msg) {
+            document.querySelector('.header').style.display = 'none';
             gameActive = false;
             clearTimeout(spawnTimer);
             overlay.style.display = 'flex';
@@ -258,3 +260,4 @@
     </script>
 </body>
 </html>
+
